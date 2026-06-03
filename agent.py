@@ -2,72 +2,76 @@ import streamlit as st
 import google.generativeai as genai
 import pypdf
 
-# Page config and styling
-st.set_page_config(page_title="Premium Global AI Business Agent", page_icon="🤖", layout="wide")
+# Page config and styling for a completely clean layout
+st.set_page_config(page_title="Gemini - Nitish Kumar", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
 
-# Advanced Custom CSS for Ultra-Premium Cyberpunk Business Dark Theme
+# Advanced CSS to mirror Google Gemini's precise web UI
 st.markdown("""
     <style>
-    /* Global background and font */
+    /* Global App Background */
     .stApp {
-        background: radial-gradient(circle at 50% 50%, #10121d 0%, #07080d 100%);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #e2e8f0;
+        background-color: #0b121f !important;
+        color: #e3e3e3 !important;
+        font-family: 'Google Sans', 'Segoe UI', Arial, sans-serif;
     }
     
-    /* Glowing Title Effect */
-    .premium-title {
-        background: linear-gradient(90deg, #00f2fe 0%, #4facfe 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 3rem;
-        font-weight: 800;
-        letter-spacing: -1px;
-        margin-bottom: 5px;
-        text-shadow: 0 0 30px rgba(0, 242, 254, 0.2);
-    }
-    
-    .premium-subtitle {
-        color: #94a3b8;
-        font-size: 1.2rem;
-        font-weight: 400;
-        margin-bottom: 25px;
-    }
-    
-    /* Glassmorphism Sidebar */
-    div[data-testid="stSidebar"] {
-        background-color: rgba(15, 18, 30, 0.75) !important;
-        backdrop-filter: blur(12px);
-        border-right: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    
-    /* Custom style for cards and boxes */
-    .status-box {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    
-    /* Make chat input look sleek */
-    div[data-testid="stChatInput"] {
-        border-radius: 14px !important;
-        border: 1px solid rgba(0, 242, 254, 0.2) !important;
-        background-color: #131722 !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    }
-    
-    /* Hide default streamlit badges */
+    /* Hide Streamlit elements to keep it clean */
     header {visibility: hidden;}
     footer {visibility: hidden;}
+    div[data-testid="stToolbar"] {visibility: hidden;}
+    
+    /* Center Layout Container */
+    .gemini-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        margin-top: 12vh;
+    }
+    
+    /* Animated Gradient Text matching original look */
+    .gemini-greeting {
+        font-size: 3.2rem;
+        font-weight: 500;
+        background: linear-gradient(90deg, #4285f4, #9b51e0, #ea4335);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 40px;
+        letter-spacing: -0.5px;
+    }
+    
+    /* Custom Styling for the Gemini Chat Input Wrapper */
+    div[data-testid="stChatInput"] {
+        max-width: 720px !important;
+        margin: 0 auto !important;
+        border-radius: 32px !important;
+        border: 1px solid #3c4043 !important;
+        background-color: #1e1f20 !important;
+        padding: 4px 12px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    div[data-testid="stChatInput"] textarea {
+        color: #e3e3e3 !important;
+        background-color: transparent !important;
+        font-size: 1.05rem !important;
+    }
+
+    /* Style Sidebar for document handling */
+    div[data-testid="stSidebar"] {
+        background-color: #0f141c !important;
+        border-right: 1px solid #282c34;
+    }
+    
+    .sidebar-title {
+        color: #8ab4f8;
+        font-size: 1.2rem;
+        font-weight: 500;
+        margin-bottom: 15px;
+    }
     </style>
 """, unsafe_allow_html=True)
-
-# Premium Header Layout
-st.markdown('<h1 class="premium-title">🤖 Premium Global AI Business Agent</h1>', unsafe_allow_html=True)
-st.markdown('<p class="premium-subtitle">⚡ Enterprise-Grade PDF Intelligence & Market Analytics</p>', unsafe_allow_html=True)
-st.write("---")
 
 # Initialize Gemini Client
 @st.cache_resource
@@ -86,80 +90,73 @@ if "messages" not in st.session_state:
 if "pdf_context" not in st.session_state:
     st.session_state.pdf_context = ""
 
-# --- SIDEBAR: DESIGNER PANEL ---
+# --- SIDEBAR (Hidden by default, open using top-left arrow for uploading docs) ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#00f2fe; font-size:1.5rem; font-weight:700; margin-bottom:15px;'>📁 Control Center</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#94a3b8; font-size:0.9rem;'>Upload documents to feed data directly into the AI's core memory core.</p>", unsafe_allow_html=True)
-    
-    uploaded_file = st.file_uploader("", type=["pdf"])
+    st.markdown('<p class="sidebar-title">📁 Context Files</p>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Add PDF for Gemini to reference", type=["pdf"])
     
     if uploaded_file is not None:
         if "last_uploaded_file" not in st.session_state or st.session_state.last_uploaded_file != uploaded_file.name:
-            with st.spinner("Decoding document matrix..."):
+            with st.spinner("Processing document..."):
                 try:
                     pdf_reader = pypdf.PdfReader(uploaded_file)
                     extracted_text = ""
                     for page in pdf_reader.pages:
                         text = page.extract_text()
-                        if text:
-                            extracted_text += text + "\n"
-                    
+                        if text: extracted_text += text + "\n"
                     st.session_state.pdf_context = extracted_text
                     st.session_state.last_uploaded_file = uploaded_file.name
+                    st.success("Document attached! ✅")
                 except Exception as e:
-                    st.error(f"Read Error: {e}")
-                    
-    if st.session_state.pdf_context:
-        st.markdown(f"""
-        <div class="status-box">
-            <p style='color:#00ff88; margin:0; font-weight:600;'>🟢 DATA STREAM ACTIVE</p>
-            <p style='color:#e2e8f0; font-size:0.85rem; margin:5px 0 0 0;'>File: {st.session_state.last_uploaded_file}</p>
-        </div>
-        """, unsafe_allow_html=True)
+                    st.error(f"Error: {e}")
     else:
-        st.markdown("""
-        <div class="status-box">
-            <p style='color:#ff3b3b; margin:0; font-weight:600;'>🔴 NO DATA UPLOADED</p>
-            <p style='color:#94a3b8; font-size:0.85rem; margin:5px 0 0 0;'>AI is running on standard knowledge base.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.session_state.pdf_context = ""
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    if st.button("🔄 Reset System Memory", use_container_width=True):
+    if st.button("Clear Conversation", use_container_width=True):
         st.session_state.messages = []
         st.session_state.pdf_context = ""
-        if "last_uploaded_file" in st.session_state:
-            del st.session_state.last_uploaded_file
         st.rerun()
 
-# --- MAIN CHAT INTERFACE ---
-# Display past messages
+# --- MAIN INTERFACE ---
+
+# If no chat has started, show the beautiful Gemini greeting page
+if not st.session_state.messages:
+    st.markdown("""
+        <div class="gemini-container">
+            <h1 class="gemini-greeting">Hi Nitish kumar, what's the plan?</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
+# Display chat history neatly
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# User Input
-if user_query := st.chat_input("Ask your premium AI Agent anything about business or your PDF..."):
+# User Chat Input Box (Capsule Design)
+if user_query := st.chat_input("Ask Gemini..."):
+    # If it's the first message, rerun to clear the greeting instantly
+    is_first_message = len(st.session_state.messages) == 0
+    
     with st.chat_message("user"):
         st.markdown(user_query)
     st.session_state.messages.append({"role": "user", "content": user_query})
 
-    # Prepare complete prompt for AI
+    # Prepare prompt
     full_prompt = ""
     if st.session_state.pdf_context:
-        full_prompt += f"--- START OF UPLOADED DOCUMENT CONTEXT ---\n{st.session_state.pdf_context}\n--- END OF UPLOADED DOCUMENT CONTEXT ---\n\n"
-        full_prompt += f"Instructions: You are an Ultra-Premium Global AI Business Agent. Analyze the document context above and give deep enterprise-level business insights to answer the question.\n\n"
-    
-    full_prompt += f"User Question: {user_query}"
+        full_prompt += f"[Document Context Included]\n{st.session_state.pdf_context}\n\n"
+    full_prompt += user_query
 
+    # Generate response
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        with st.spinner("AI Agent is computing insights..."):
-            try:
-                response = model.generate_content(full_prompt)
-                ai_response = response.text
-                message_placeholder.markdown(ai_response)
-                st.session_state.messages.append({"role": "assistant", "content": ai_response})
-            except Exception as e:
-                error_msg = f"System Error: {e}"
-                message_placeholder.markdown(error_msg)
+        try:
+            response = model.generate_content(full_prompt)
+            ai_response = response.text
+            message_placeholder.markdown(ai_response)
+            st.session_state.messages.append({"role": "assistant", "content": ai_response})
+        except Exception as e:
+            message_placeholder.markdown(f"Error: {e}")
+            
+    if is_first_message:
+        st.rerun()
