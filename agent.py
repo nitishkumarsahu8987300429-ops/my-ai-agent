@@ -18,12 +18,13 @@ st.title("🤖 Premium Global AI Business Agent")
 st.subheader("Now with Google Search & PDF Intelligence")
 st.write("---")
 
-# Initialize Gemini Client (Streamlit automatically picks GEMINI_API_KEY from secrets/environment)
+# Initialize Gemini Client
 @st.cache_resource
 def get_ai_model():
+    # Correct way to enable Google Search grounding in Gemini Python SDK
     return genai.GenerativeModel(
         model_name="gemini-1.5-flash",
-        tools=[{"google_search": {}}]  # Enables Google Search Grounding
+        tools="google_search"
     )
 
 try:
@@ -44,23 +45,25 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Upload Market Reports, Invoices, or PDFs", type=["pdf"])
     
     if uploaded_file is not None:
-        with st.spinner("Reading your document..."):
-            try:
-                pdf_reader = pypdf.PdfReader(uploaded_file)
-                extracted_text = ""
-                for page in pdf_reader.pages:
-                    text = page.extract_text()
-                    if text:
-                        extracted_text += text + "\n"
-                
-                st.session_state.pdf_context = extracted_text
-                st.success(f"Successfully loaded: {uploaded_file.name} ✅")
-                st.info(f"Read {len(pdf_reader.pages)} pages. AI is now ready to analyze it!")
-            except Exception as e:
-                st.error(f"Could not read PDF: {e}")
+        if "last_uploaded_file" not in st.session_state or st.session_state.last_uploaded_file != uploaded_file.name:
+            with st.spinner("Reading your document..."):
+                try:
+                    pdf_reader = pypdf.PdfReader(uploaded_file)
+                    extracted_text = ""
+                    for page in pdf_reader.pages:
+                        text = page.extract_text()
+                        if text:
+                            extracted_text += text + "\n"
+                    
+                    st.session_state.pdf_context = extracted_text
+                    st.session_state.last_uploaded_file = uploaded_file.name
+                    st.success(f"Successfully loaded: {uploaded_file.name} ✅")
+                except Exception as e:
+                    st.error(f"Could not read PDF: {e}")
     else:
-        # Clear context if file is removed
         st.session_state.pdf_context = ""
+        if "last_uploaded_file" in st.session_state:
+            del st.session_state.last_uploaded_file
 
     st.write("---")
     if st.button("Clear Chat History"):
@@ -84,7 +87,7 @@ if user_query := st.chat_input("Ask your premium AI Agent anything about busines
     full_prompt = ""
     if st.session_state.pdf_context:
         full_prompt += f"--- START OF UPLOADED DOCUMENT CONTEXT ---\n{st.session_state.pdf_context}\n--- END OF UPLOADED DOCUMENT CONTEXT ---\n\n"
-        full_prompt += f"Instructions: Use the above document context to answer the user's question. If the answer is not in the document, use your general knowledge and the Google Search tool to find the answer.\n\n"
+        full_prompt += f"Instructions: Use the above document context to answer the user's question. If the answer is not in the document, use Google Search to find the answer.\n\n"
     
     full_prompt += f"User Question: {user_query}"
 
