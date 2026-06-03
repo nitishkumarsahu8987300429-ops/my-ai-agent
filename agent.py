@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import pypdf
-import io
+import urllib.parse
 
 # 1. Page Configuration
 st.set_page_config(page_title="AI Agent - Nitish Kumar", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
@@ -49,7 +49,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Setup Gemini Chat Engine
+# 3. Setup Gemini Text Engine
 @st.cache_resource
 def load_chat_core():
     return genai.GenerativeModel("gemini-1.5-flash")
@@ -60,7 +60,7 @@ except Exception as e:
     st.error(f"Engine connection failed: {e}")
     st.stop()
 
-# Initialize Persistent Chat Memory
+# Initialize Chat Memory Matrix
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -72,15 +72,18 @@ if not st.session_state.chat_history:
         </div>
     """, unsafe_allow_html=True)
 
-# Print Chat logs dynamically
-for message in st.session_state.chat_history:
-    with st.chat_message(message["role"]):
-        if message["type"] == "text":
-            st.markdown(message["content"])
-        elif message["type"] == "image":
-            st.image(message["content"], caption=message.get("caption", "Generated Image"))
+# Container to lock dynamic message rendering without refresh bugs
+chat_placeholder = st.container()
 
-# 4. INLINE CHAT WITH PLUS COMPONENT (Ask AI Agent ke bagal me plus icon)
+with chat_placeholder:
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            if message["type"] == "text":
+                st.markdown(message["content"])
+            elif message["type"] == "image":
+                st.image(message["content"], caption=message.get("caption", "Generated Asset"))
+
+# 4. INLINE CHAT WITH PLUS COMPONENT
 user_payload = st.chat_input(
     "Ask AI Agent...", 
     accept_file=True, 
@@ -92,7 +95,8 @@ if user_payload:
     attached_file = user_payload.files[0] if user_payload.files else None
     
     if prompt_text or attached_file:
-        with st.chat_message("user"):
+        # Append User Input instantly to layout container
+        with chat_placeholder.chat_message("user"):
             if prompt_text:
                 st.markdown(prompt_text)
             if attached_file:
@@ -104,40 +108,31 @@ if user_payload:
             "content": prompt_text if prompt_text else f"Uploaded {attached_file.name}"
         })
 
-    # Image keywords filter
+    # Global Image Verification Key-checks (Handles misspelling like 'creat')
     clean_prompt = prompt_text.lower()
-    is_image_request = any(kw in clean_prompt for kw in ["creat", "generate", "draw", "make a photo", "picture of", "image of", "buterfly", "dog"])
+    is_image_request = any(kw in clean_prompt for kw in ["creat", "generate", "draw", "make a photo", "picture of", "image of", "snake", "buterfly", "dog"])
 
-    with st.chat_message("assistant"):
-        # ROUTE A: NEW STABLE IMAGE CREATION LOGIC
+    # Process AI Response block
+    with chat_placeholder.chat_message("assistant"):
         if is_image_request:
-            with st.spinner("⚡ Creating your custom image with Imagen 3... Please wait"):
+            with st.spinner("⚡ Creating your custom image... Please wait"):
                 try:
-                    # Using the correct direct API structure for Image Generation
-                    imagen_engine = genai.ImageGenerationModel("imagen-3.0-generate-002")
-                    result = imagen_engine.generate_images(
-                        prompt=prompt_text,
-                        number_of_images=1,
-                        aspect_ratio="1:1"
-                    )
+                    # Clean and encode the string cleanly for direct image rendering
+                    encoded_prompt = urllib.parse.quote(prompt_text)
+                    image_url = f"https://image.pollinations.ai/p/{encoded_prompt}?width=1024&height=1024&nologo=true"
                     
-                    # Grab and convert bytes to screen display
-                    generated_image = result.images[0]
-                    image_object = Image.open(io.BytesIO(generated_image.bytes))
+                    # Direct display injects perfectly without relying on st.rerun
+                    st.image(image_url, caption=f"Result for: '{prompt_text}'")
                     
-                    # Display instantly
-                    st.image(image_object, caption=f"Result for: '{prompt_text}'")
                     st.session_state.chat_history.append({
                         "role": "assistant", 
                         "type": "image", 
-                        "content": image_object, 
+                        "content": image_url, 
                         "caption": prompt_text
                     })
                 except Exception as img_err:
-                    st.error(f"Image Generation failed. Reason: {img_err}")
-                    st.info("Tip: Some account permissions or regions might face Imagen API lag. Check your Google Cloud console if this persists.")
+                    st.error(f"Image Pipeline Interrupted: {img_err}")
         
-        # ROUTE B: MULTIMODAL CHAT
         else:
             with st.spinner("Thinking..."):
                 content_payload = []
@@ -164,5 +159,3 @@ if user_payload:
                     st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": ai_reply})
                 except Exception as chat_err:
                     st.error(f"Chat Error: {chat_err}")
-                    
-    st.rerun()
