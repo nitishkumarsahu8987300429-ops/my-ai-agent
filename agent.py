@@ -7,7 +7,7 @@ import io
 # 1. Page Configuration
 st.set_page_config(page_title="AI Agent - Nitish Kumar", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. Premium Professional Gemini Layout CSS
+# 2. Premium Dark UI Theme CSS
 st.markdown("""
     <style>
     .stApp {
@@ -49,26 +49,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Setup Gemini Core Engines Safely
+# 3. Setup Gemini Chat Engine
 @st.cache_resource
-def load_ai_cores():
-    # Stable 1.5/2.5 models used for reliable conversational API calls
-    chat_model = genai.GenerativeModel("gemini-1.5-flash")
-    image_model = genai.GenerativeModel("imagen-3.0-generate-002")
-    return chat_model, image_model
+def load_chat_core():
+    return genai.GenerativeModel("gemini-1.5-flash")
 
 try:
-    chat_engine, image_engine = load_ai_cores()
+    chat_engine = load_chat_core()
 except Exception as e:
     st.error(f"Engine connection failed: {e}")
     st.stop()
 
-# Initialize Persistent Brain Memory Matrix
+# Initialize Persistent Chat Memory
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # --- MAIN INTERFACE DISPLAY ---
-
 if not st.session_state.chat_history:
     st.markdown("""
         <div class="gemini-container">
@@ -76,15 +72,15 @@ if not st.session_state.chat_history:
         </div>
     """, unsafe_allow_html=True)
 
-# Print Chat logs dynamically 
+# Print Chat logs dynamically
 for message in st.session_state.chat_history:
     with st.chat_message(message["role"]):
         if message["type"] == "text":
             st.markdown(message["content"])
         elif message["type"] == "image":
-            st.image(message["content"], caption=message.get("caption", "Generated Asset"))
+            st.image(message["content"], caption=message.get("caption", "Generated Image"))
 
-# 4. ULTRA-PRO INLINE CHAT WITH BUILT-IN PLUS COMPONENT
+# 4. INLINE CHAT WITH PLUS COMPONENT (Ask AI Agent ke bagal me plus icon)
 user_payload = st.chat_input(
     "Ask AI Agent...", 
     accept_file=True, 
@@ -102,41 +98,46 @@ if user_payload:
             if attached_file:
                 st.caption(f"📎 Attached Asset: {attached_file.name}")
         
-        # Log to structural session state safely
         st.session_state.chat_history.append({
             "role": "user", 
             "type": "text", 
             "content": prompt_text if prompt_text else f"Uploaded {attached_file.name}"
         })
 
-    # Advanced keywords matching logic (Fixed spelling mistake handling like 'creat')
+    # Image keywords filter
     clean_prompt = prompt_text.lower()
-    is_image_request = any(kw in clean_prompt for kw in ["creat", "generate", "draw", "make a photo", "picture of", "image of", "buterfly"])
+    is_image_request = any(kw in clean_prompt for kw in ["creat", "generate", "draw", "make a photo", "picture of", "image of", "buterfly", "dog"])
 
     with st.chat_message("assistant"):
-        # ROUTE A: EXTRA-POWERFUL IMAGE CREATION ENGINE (IMAGEN 3)
+        # ROUTE A: NEW STABLE IMAGE CREATION LOGIC
         if is_image_request:
-            with st.spinner("⚡ Creating your custom image... Please wait a moment"):
+            with st.spinner("⚡ Creating your custom image with Imagen 3... Please wait"):
                 try:
-                    # Enforce high-level prompt extraction
-                    result = image_engine.generate_content(prompt_text if prompt_text else "A beautiful abstract render")
+                    # Using the correct direct API structure for Image Generation
+                    imagen_engine = genai.ImageGenerationModel("imagen-3.0-generate-002")
+                    result = imagen_engine.generate_images(
+                        prompt=prompt_text,
+                        number_of_images=1,
+                        aspect_ratio="1:1"
+                    )
                     
-                    # Direct check for valid generation packets
-                    if result.candidates and result.candidates[0].content.parts:
-                        for part in result.candidates[0].content.parts:
-                            if part.inline_data:
-                                img_bytes = part.inline_data.data
-                                image_object = Image.open(io.BytesIO(img_bytes))
-                                
-                                st.image(image_object, caption=f"Result for: '{prompt_text}'")
-                                st.session_state.chat_history.append({"role": "assistant", "type": "image", "content": image_object, "caption": prompt_text})
-                                break
-                    else:
-                        st.warning("Google's safety filter blocked this generation prompt. Try using different words!")
+                    # Grab and convert bytes to screen display
+                    generated_image = result.images[0]
+                    image_object = Image.open(io.BytesIO(generated_image.bytes))
+                    
+                    # Display instantly
+                    st.image(image_object, caption=f"Result for: '{prompt_text}'")
+                    st.session_state.chat_history.append({
+                        "role": "assistant", 
+                        "type": "image", 
+                        "content": image_object, 
+                        "caption": prompt_text
+                    })
                 except Exception as img_err:
-                    st.error(f"Generation Note: Imagen 3 API is processing heavy load. Error trace: {img_err}")
+                    st.error(f"Image Generation failed. Reason: {img_err}")
+                    st.info("Tip: Some account permissions or regions might face Imagen API lag. Check your Google Cloud console if this persists.")
         
-        # ROUTE B: CONVERSATIONAL MULTIMODAL ENGINE
+        # ROUTE B: MULTIMODAL CHAT
         else:
             with st.spinner("Thinking..."):
                 content_payload = []
