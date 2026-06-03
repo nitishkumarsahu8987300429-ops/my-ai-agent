@@ -1,199 +1,167 @@
 import streamlit as st
 import google.generativeai as genai
+from PIL import Image
 import pypdf
+import io
 
-# Page config and styling for an absolute Gemini layout
+# 1. Page Configuration
 st.set_page_config(page_title="AI Agent - Nitish Kumar", page_icon="✨", layout="wide", initial_sidebar_state="collapsed")
 
-# Custom CSS to mimic the accurate Gemini dropdown pop-up menu
+# 2. Premium Professional Gemini Layout CSS
 st.markdown("""
     <style>
-    /* Global Background */
     .stApp {
         background-color: #0b121f !important;
         color: #e3e3e3 !important;
-        font-family: 'Google Sans', 'Segoe UI', Arial, sans-serif;
+        font-family: 'Google Sans', sans-serif;
     }
-    
-    /* Hide default Streamlit clutter */
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    div[data-testid="stToolbar"] {visibility: hidden;}
-    div[data-testid="stSidebar"] {visibility: hidden;}
-    
-    /* Center Layout Container */
+    header, footer, div[data-testid="stToolbar"], div[data-testid="stSidebar"] {
+        visibility: hidden !important;
+    }
     .gemini-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        margin-top: 15vh;
+        margin-top: 12vh;
+        margin-bottom: 5vh;
     }
-    
-    /* Animated Gradient Text */
     .gemini-greeting {
         font-size: 3.2rem;
         font-weight: 500;
         background: linear-gradient(90deg, #4285f4, #9b51e0, #ea4335);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 40px;
         letter-spacing: -0.5px;
     }
-    
-    /* Gemini-styled Floating Pop-up Menu Container */
-    .gemini-popup {
-        background-color: #1e1f20;
-        border: 1px solid #3c4043;
-        border-radius: 16px;
-        padding: 12px 0px;
-        width: 100%;
-        max-width: 280px;
-        box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.5);
-        margin-bottom: -10px;
+    /* Fixed Bottom Chat styling to force premium integration */
+    div[data-testid="stBottom"] {
+        background-color: #0b121f !important;
+        padding-bottom: 20px;
     }
-    
-    /* Dropdown item styles */
-    .popup-item {
-        display: flex;
-        align-items: center;
-        padding: 10px 20px;
-        font-size: 0.95rem;
-        color: #e3e3e3;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .popup-item:hover {
-        background-color: #2d2f31;
-    }
-    
-    /* Chat Input Styling */
     div[data-testid="stChatInput"] {
-        max-width: 720px !important;
+        max-width: 760px !important;
         margin: 0 auto !important;
-        border-radius: 32px !important;
+        border-radius: 28px !important;
         border: 1px solid #3c4043 !important;
         background-color: #1e1f20 !important;
-        padding: 4px 12px !important;
-    }
-    
-    div[data-testid="stChatInput"] textarea {
-        color: #e3e3e3 !important;
-        background-color: transparent !important;
-        font-size: 1.05rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Initialize Gemini Client
+# 3. Setup Gemini Core Engines
 @st.cache_resource
-def get_ai_model():
-    return genai.GenerativeModel(model_name="gemini-1.5-flash")
+def load_ai_cores():
+    # Regular Chat Model (Supports Vision/Multimodal natively)
+    chat_model = genai.GenerativeModel("gemini-2.5-flash")
+    # Native High-Fidelity Image Generator Engine
+    image_model = genai.GenerativeModel("imagen-3.0-generate-002")
+    return chat_model, image_model
 
 try:
-    model = get_ai_model()
+    chat_engine, image_engine = load_ai_cores()
 except Exception as e:
-    st.error(f"API Client Error: {e}")
+    st.error(f"Engine connection failed: {e}")
     st.stop()
 
-# Initialize session states
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "pdf_context" not in st.session_state:
-    st.session_state.pdf_context = ""
-if "menu_open" not in st.session_state:
-    st.session_state.menu_open = False
+# Initialize Persistent Brain Memory Matrix
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# --- MAIN INTERFACE ---
+# --- MAIN INTERFACE DISPLAY ---
 
-# Show greeting if chat screen is empty
-if not st.session_state.messages:
+if not st.session_state.chat_history:
     st.markdown("""
         <div class="gemini-container">
             <h1 class="gemini-greeting">Hi Nitish kumar, what's the plan?</h1>
         </div>
     """, unsafe_allow_html=True)
 
-# --- INLINE UTILITY MATRIX (Pop-up system) ---
-st.markdown("<div style='max-width:720px; margin: 0 auto;'>", unsafe_allow_html=True)
+# Print Chat logs dynamically 
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        if message["type"] == "text":
+            st.markdown(message["content"])
+        elif message["type"] == "image":
+            st.image(message["content"], caption=message.get("caption", "Generated Image"))
 
-col1, col2 = st.columns([1, 11])
-with col1:
-    # Trigger checkbox that acts as our click button
-    if st.button("➕", help="Click to open menu"):
-        st.session_state.menu_open = not st.session_state.menu_open
+# 4. ULTRA-PRO INLINE CHAT WITH BUILT-IN PLUS COMPONENT
+# Using native accept_file directly injects the Plus symbol inside the box right next to text input!
+user_payload = st.chat_input(
+    "Ask AI Agent...", 
+    accept_file=True, 
+    file_type=["pdf", "png", "jpg", "jpeg"]
+)
 
-with col2:
-    if st.session_state.pdf_context and not st.session_state.menu_open:
-        st.markdown(f"<span style='color:#4ade80; font-size:0.9rem; background:#0d3c26; padding: 4px 12px; border-radius:20px;'>Attached: {st.session_state.last_uploaded_file} ✅</span>", unsafe_allow_html=True)
-
-# If menu is active, display the beautiful floating item panel
-if st.session_state.menu_open:
-    col_menu, _ = st.columns([4, 6])
-    with col_menu:
-        st.markdown("""
-            <div class="gemini-popup">
-                <div class="popup-item">📄 Upload Files (Select document below)</div>
-                <div class="popup-item" style="color: #80868b;">☁️ Add from Drive (Premium Feature)</div>
-                <div class="popup-item" style="color: #80868b;">🔍 Deep Research (Enterprise Only)</div>
-            </div>
-        """, unsafe_allow_html=True)
+if user_payload:
+    # Separate Text Prompt and File Elements safely
+    prompt_text = user_payload.text if user_payload.text else ""
+    attached_file = user_payload.files[0] if user_payload.files else None
+    
+    # Render user command instantly
+    if prompt_text or attached_file:
+        with st.chat_message("user"):
+            if prompt_text:
+                st.markdown(prompt_text)
+            if attached_file:
+                st.caption(f"📎 Attached Document: {attached_file.name}")
         
-        uploaded_file = st.file_uploader("", type=["pdf"], label_visibility="collapsed")
-        if uploaded_file is not None:
-            if "last_uploaded_file" not in st.session_state or st.session_state.last_uploaded_file != uploaded_file.name:
-                with st.spinner("Embedding document matrix..."):
-                    try:
-                        pdf_reader = pypdf.PdfReader(uploaded_file)
+        # Save to logs
+        st.session_state.chat_history.append({"role": "user", "type": "text", "content": f"{prompt_text} (File: {attached_file.name if attached_file else 'None'})"})
+
+    # Check Engine Target: Image Generation vs Chat Processing
+    is_image_request = any(keyword in prompt_text.lower() for keyword in ["create image", "generate picture", "draw", "make a photo", "create an image", "picture of"])
+
+    with st.chat_message("assistant"):
+        # ROUTE A: HIGH-POWERED IMAGE CREATION ENGINE
+        if is_image_request:
+            with st.spinner("⚡ Matrix generating your custom image..."):
+                try:
+                    result = image_engine.generate_content(prompt_text)
+                    # Extract raw image bytes from response
+                    for part in result.candidates[0].content.parts:
+                        if part.inline_data:
+                            img_bytes = part.inline_data.data
+                            image_object = Image.open(io.BytesIO(img_bytes))
+                            
+                            st.image(image_object, caption=f"Result for: '{prompt_text}'")
+                            st.session_state.chat_history.append({"role": "assistant", "type": "image", "content": image_object, "caption": prompt_text})
+                            break
+                except Exception as img_err:
+                    st.error(f"Image Engine Interruption: {img_err}. Make sure your prompt describes a clear scene.")
+        
+        # ROUTE B: MULTIMODAL CHAT ENGINE (TEXT/PDF/SCREENSHOTS)
+        else:
+            with st.spinner("Thinking..."):
+                content_payload = []
+                
+                # Append attached contextual layers if present
+                if attached_file:
+                    file_extension = attached_file.name.split(".")[-1].lower()
+                    if file_extension in ["png", "jpg", "jpeg"]:
+                        # Convert screenshot image bytes directly for multimodal processing
+                        screenshot_img = Image.open(attached_file)
+                        content_payload.append(screenshot_img)
+                    elif file_extension == "pdf":
+                        # Process PDF Data 
+                        pdf_reader = pypdf.PdfReader(attached_file)
                         extracted_text = ""
                         for page in pdf_reader.pages:
                             text = page.extract_text()
                             if text: extracted_text += text + "\n"
-                        st.session_state.pdf_context = extracted_text
-                        st.session_state.last_uploaded_file = uploaded_file.name
-                        st.session_state.menu_open = False  # Close menu automatically
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-        else:
-            # Clear context if file removed
-            if "last_uploaded_file" in st.session_state and not uploaded_file:
-                st.session_state.pdf_context = ""
-                del st.session_state.last_uploaded_file
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Display Chat Messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# User Chat Box
-if user_query := st.chat_input("Ask AI Agent..."):
-    is_first_message = len(st.session_state.messages) == 0
-    st.session_state.menu_open = False  # Auto close on enter
-    
-    with st.chat_message("user"):
-        st.markdown(user_query)
-    st.session_state.messages.append({"role": "user", "content": user_query})
-
-    # Prepare prompt
-    full_prompt = ""
-    if st.session_state.pdf_context:
-        full_prompt += f"[Document Context]\n{st.session_state.pdf_context}\n\n"
-    full_prompt += user_query
-
-    # Assistant Response
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        try:
-            response = model.generate_content(full_prompt)
-            ai_response = response.text
-            message_placeholder.markdown(ai_response)
-            st.session_state.messages.append({"role": "assistant", "content": ai_response})
-        except Exception as e:
-            message_placeholder.markdown(f"Error: {e}")
-            
-    if is_first_message:
-        st.rerun()
+                        content_payload.append(f"[Document Context: {attached_file.name}]\n{extracted_text}\n\n")
+                
+                # Append main user question string
+                content_payload.append(prompt_text if prompt_text else "Analyze this attached asset.")
+                
+                try:
+                    response = chat_engine.generate_content(content_payload)
+                    ai_reply = response.text
+                    st.markdown(ai_reply)
+                    st.session_state.chat_history.append({"role": "assistant", "type": "text", "content": ai_reply})
+                except Exception as chat_err:
+                    st.error(f"Chat Matrix Error: {chat_err}")
+                    
+    # Force seamless sync rerun
+    st.rerun()
