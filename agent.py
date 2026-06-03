@@ -15,17 +15,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🤖 Premium Global AI Business Agent")
-st.subheader("Now with Google Search & PDF Intelligence")
+st.subheader("Supercharged with PDF & Document Intelligence")
 st.write("---")
 
-# Initialize Gemini Client
+# Initialize Gemini Client (No complex tools to avoid library version errors)
 @st.cache_resource
 def get_ai_model():
-    # Correct structure to pass Google Search tool to Gemini model
-    return genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        tools=[{"google_search": {}}]
-    )
+    return genai.GenerativeModel(model_name="gemini-1.5-flash")
 
 try:
     model = get_ai_model()
@@ -39,7 +35,7 @@ if "messages" not in st.session_state:
 if "pdf_context" not in st.session_state:
     st.session_state.pdf_context = ""
 
-# --- SIDEBAR: PDF UPLOAD & CONFIG ---
+# --- SIDEBAR: PDF UPLOAD ---
 with st.sidebar:
     st.header("📁 Business Documents")
     uploaded_file = st.file_uploader("Upload Market Reports, Invoices, or PDFs", type=["pdf"])
@@ -87,14 +83,14 @@ if user_query := st.chat_input("Ask your premium AI Agent anything about busines
     full_prompt = ""
     if st.session_state.pdf_context:
         full_prompt += f"--- START OF UPLOADED DOCUMENT CONTEXT ---\n{st.session_state.pdf_context}\n--- END OF UPLOADED DOCUMENT CONTEXT ---\n\n"
-        full_prompt += f"Instructions: Use the above document context to answer the user's question. If the answer is not in the document, use Google Search to find the answer.\n\n"
+        full_prompt += f"Instructions: You are a Premium Business AI. Use the above document context to answer the user's question accurately.\n\n"
     
     full_prompt += f"User Question: {user_query}"
 
     # Generate response from Gemini
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        with st.spinner("Analyzing and searching..."):
+        with st.spinner("Thinking..."):
             try:
                 response = model.generate_content(full_prompt)
                 ai_response = response.text
