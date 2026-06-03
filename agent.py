@@ -21,10 +21,10 @@ st.write("---")
 # Initialize Gemini Client
 @st.cache_resource
 def get_ai_model():
-    # Correct way to enable Google Search grounding in Gemini Python SDK
+    # Correct structure to pass Google Search tool to Gemini model
     return genai.GenerativeModel(
         model_name="gemini-1.5-flash",
-        tools="google_search"
+        tools=[{"google_search": {}}]
     )
 
 try:
